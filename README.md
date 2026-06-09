@@ -76,40 +76,6 @@ bgp_web/
 
 ---
 
-## Uso local
-
-```bash
-git clone https://github.com/fabirex/bgp-interactive.git
-cd bgp-interactive
-# Abrir index.html en el navegador
-```
-
-O con servidor local:
-
-```bash
-npx serve .
-# o
-python -m http.server 8080
-```
-
----
-
-## Publicar en GitHub Pages
-
-1. `Settings → Pages`
-2. Branch: `master` → `/ (root)`
-3. Save
-
-La web queda disponible en `https://fabirex.github.io/bgp-interactive`
-
----
-
-## Base de conocimiento
-
-El archivo `bgp_knowledge_base.md` (en la carpeta del proyecto, no incluido en el repo) contiene todo el contenido del libro estructurado por módulo con referencias de página. Permite actualizar el contenido sin re-procesar el PDF original.
-
----
-
 ## Referencias
 
 - Medhi, D. & Ramasamy, K. — *Network Routing: Algorithms, Protocols, and Architectures* (Morgan Kaufmann, 2007)
