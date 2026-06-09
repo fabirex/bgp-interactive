@@ -154,10 +154,10 @@ const prependDemo = document.getElementById('prepend-demo');
 if (prependSlider) {
   prependSlider.addEventListener('input', () => {
     const n = parseInt(prependSlider.value);
-    const path = Array(n).fill('64518').join(' ');
+    const path = Array(n).fill('65001').join(' ');
     prependDemo.innerHTML = `
-      <div class="prepend-row"><span class="as-box">AS-PATH: [${path}, 11664]</span><span class="label">← ${n === 1 ? 'Normal (Sitio Matriz — preferido)' : `Prepend ×${n-1} (ruta degradada — backup)`}</span></div>
-      <div style="margin-top:6px;font-size:12px;color:#8b949e">Longitud del AS-PATH: ${n+1} saltos. ${n > 1 ? '⚠ Claro prefiere el camino más corto → este sitio es backup.' : '✓ Ruta preferida por AS-PATH más corto.'}</div>`;
+      <div class="prepend-row"><span class="as-box">AS-PATH: [${path}, 65000]</span><span class="label">← ${n === 1 ? 'Normal (Sitio Matriz — preferido)' : `Prepend ×${n-1} (ruta degradada — backup)`}</span></div>
+      <div style="margin-top:6px;font-size:12px;color:#8b949e">Longitud del AS-PATH: ${n+1} saltos. ${n > 1 ? '⚠ El ISP prefiere el camino más corto → este sitio es backup.' : '✓ Ruta preferida por AS-PATH más corto.'}</div>`;
   });
   prependSlider.dispatchEvent(new Event('input'));
 }
@@ -279,17 +279,17 @@ function initFlapChart() {
 const scenarios = {
   basic: {
     nodes: [
-      { id:'cliente', label:'Cliente', asn:'AS 64518', x:80, y:155, prefixes:['200.81.251.0/24'], lp:100 },
-      { id:'claro', label:'Claro', asn:'AS 11664', x:380, y:155, prefixes:[], lp:100 }
+      { id:'cliente', label:'Cliente', asn:'AS 65001', x:80, y:155, prefixes:['192.0.2.0/24'], lp:100 },
+      { id:'claro', label:'ISP-Ejemplo', asn:'AS 65000', x:380, y:155, prefixes:[], lp:100 }
     ],
     links: [{ from:'cliente', to:'claro', type:'eBGP', prepend:1 }],
-    desc:'Topología básica: cliente con un solo enlace a Claro. El prefijo 200.81.251.0/24 se anuncia hacia AS 11664.'
+    desc:'Topología básica: cliente con un solo enlace al ISP. El prefijo 192.0.2.0/24 se anuncia hacia AS 65000.'
   },
   backup: {
     nodes: [
-      { id:'matriz', label:'Sitio Matriz', asn:'AS 64518', x:60, y:80, prefixes:['200.81.251.0/24'], lp:200 },
-      { id:'alterno', label:'Sitio Alterno', asn:'AS 64518', x:60, y:240, prefixes:['x.x.x.0/24'], lp:100 },
-      { id:'claro', label:'Claro', asn:'AS 11664', x:380, y:160, prefixes:[], lp:100 }
+      { id:'matriz', label:'Sitio Matriz', asn:'AS 65001', x:60, y:80, prefixes:['192.0.2.0/24'], lp:200 },
+      { id:'alterno', label:'Sitio Alterno', asn:'AS 65001', x:60, y:240, prefixes:['203.0.113.0/24'], lp:100 },
+      { id:'claro', label:'ISP-Ejemplo', asn:'AS 65000', x:380, y:160, prefixes:[], lp:100 }
     ],
     links: [
       { from:'matriz', to:'claro', type:'eBGP', prepend:1, primary:true },
@@ -399,7 +399,7 @@ document.querySelectorAll('.pg-scenario-btn')?.forEach(btn => {
 // ── QUIZ ──────────────────────────────────────────────────────────────────────
 const quizzes = {
   0: { q:'¿Qué protocolo usa BGP para transporte confiable de mensajes?', opts:['UDP 53','TCP 179','TCP 443','ICMP'], correct:1, exp:'BGP usa TCP puerto 179. La sesión TCP actúa como "virtual link" entre ASes. Si cae el TCP, BGP debe dejar de usar las rutas aprendidas de ese peer.' },
-  1: { q:'Si el AS-PATH de una ruta es [64518, 64518, 11664] y otra es [64518, 11664], ¿cuál prefiere BGP?', opts:['La primera (path más largo)','La segunda (path más corto)','Ambas igual','Depende del Hold Timer'], correct:1, exp:'BGP prefiere el AS-PATH más corto (paso 4 del algoritmo de decisión). Menos saltos = ruta más preferida. El prepend [64518, 64518] hace la ruta menos atractiva deliberadamente.' },
+  1: { q:'Si el AS-PATH de una ruta es [65001, 65001, 65000] y otra es [65001, 65000], ¿cuál prefiere BGP?', opts:['La primera (path más largo)','La segunda (path más corto)','Ambas igual','Depende del Hold Timer'], correct:1, exp:'BGP prefiere el AS-PATH más corto (paso 4 del algoritmo de decisión). Menos saltos = ruta más preferida. El prepend [65001, 65001] hace la ruta menos atractiva deliberadamente.' },
   2: { q:'¿Por qué un iBGP speaker no puede re-anunciar rutas aprendidas de otro iBGP speaker?', opts:['Por limitación de memoria','Para evitar loops ya que el ASN no se añade al AS-PATH en iBGP','Porque iBGP solo usa UDP','Por el Hold Timer'], correct:1, exp:'En iBGP el AS number no se añade al AS-PATH (es el mismo AS). Sin ese mecanismo anti-loop, las rutas podrían circular indefinidamente entre iBGP speakers. Por eso existe la Regla 2.' },
   3: { q:'¿Qué atributo controla por cuál enlace SALE el tráfico de un AS?', opts:['MED','AS-PATH','LOCAL-PREF','NEXT-HOP'], correct:2, exp:'LOCAL-PREF es un atributo interno (no sale del AS) que indica la preferencia de salida. Mayor LOCAL-PREF = enlace preferido para salir. MED en cambio influye en cómo ENTRA el tráfico desde el AS vecino.' },
   4: { q:'¿Cuántas sesiones iBGP se necesitan en full-mesh con 5 routers?', opts:['5','10','15','20'], correct:1, exp:'Full-mesh requiere N×(N-1)/2 sesiones. Con 5 routers: 5×4/2 = 10 sesiones. Por eso Route Reflectors son esenciales en redes grandes.' }

@@ -152,7 +152,7 @@ svg#links .link-line{pointer-events:stroke;}
     </div>
     <div class="field">
       <label>ASN (Autonomous System Number)</label>
-      <input type="text" id="m-asn" placeholder="Ej: 64518 (privado) o 11664 (Claro)">
+      <input type="text" id="m-asn" placeholder="Ej: 65001 (privado) o 65000 (ISP)">
       <div class="help">Rango privado: 64512–65534</div>
     </div>
     <div class="field">
@@ -165,7 +165,7 @@ svg#links .link-line{pointer-events:stroke;}
     </div>
     <div class="field">
       <label>Prefijos a anunciar (uno por línea)</label>
-      <textarea id="m-prefixes" placeholder="200.81.251.0/24&#10;10.0.0.0/8"></textarea>
+      <textarea id="m-prefixes" placeholder="192.0.2.0/24&#10;10.0.0.0/8"></textarea>
       <div class="help">Estos prefijos serán anunciados via BGP</div>
     </div>
     <div class="field">
@@ -467,7 +467,7 @@ function renderLinkPanel(link) {
     <div class="field">
       <label>AS-PATH Prepend (veces extra)</label>
       <input type="number" id="pl-prepend" value="${link.prepend}" min="1" max="10">
-      <div class="help">1 = sin prepend (normal). 2 = prepend ×1 (64518 64518). Más = ruta menos preferida.</div>
+      <div class="help">1 = sin prepend (normal). 2 = prepend ×1 (65001 65001). Más = ruta menos preferida.</div>
     </div>
     <div class="field">
       <label>MED (Multi-Exit Discriminator)</label>
@@ -668,9 +668,9 @@ function loadClaroPreset() {
   linkCounter = 0;
 
   nodes = [
-    { id:'node-1', name:'Sitio Matriz', asn:'64518', type:'router', prefixes:['200.81.251.0/24'], lp:200, x:60, y:80, down:false },
-    { id:'node-2', name:'Sitio Alterno', asn:'64518', type:'router', prefixes:['x.x.x.0/24'], lp:100, x:60, y:260, down:false },
-    { id:'node-3', name:'Claro', asn:'11664', type:'isp', prefixes:['0.0.0.0/0'], lp:100, x:420, y:170, down:false }
+    { id:'node-1', name:'Sitio Matriz', asn:'65001', type:'router', prefixes:['192.0.2.0/24'], lp:200, x:60, y:80, down:false },
+    { id:'node-2', name:'Sitio Alterno', asn:'65001', type:'router', prefixes:['203.0.113.0/24'], lp:100, x:60, y:260, down:false },
+    { id:'node-3', name:'ISP-Ejemplo', asn:'65000', type:'isp', prefixes:['0.0.0.0/0'], lp:100, x:420, y:170, down:false }
   ];
   links = [
     { id:'link-1', from:'node-1', to:'node-3', type:'eBGP', prepend:1, med:0, weight:0 },
