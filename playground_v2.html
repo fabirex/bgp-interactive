@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>BGP Playground v2.0</title>
+<style>
+:root {
+  --bg:#0d1117; --bg2:#161b22; --bg3:#21262d; --border:#30363d;
+  --text:#e6edf3; --muted:#8b949e; --blue:#58a6ff; --green:#3fb950;
+  --orange:#d29922; --red:#f85149; --purple:#bc8cff; --teal:#39d353;
+  --card:#1c2128;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+
+/* TOOLBAR */
+#toolbar{background:var(--bg2);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;gap:8px;flex-shrink:0;}
+#toolbar h1{font-size:15px;font-weight:700;color:var(--blue);margin-right:12px;}
+.tb-btn{padding:7px 14px;border-radius:7px;border:1px solid var(--border);background:var(--bg3);color:var(--text);cursor:pointer;font-size:12px;font-weight:600;transition:all .15s;display:flex;align-items:center;gap:6px;}
+.tb-btn:hover{border-color:var(--blue);color:var(--blue);}
+.tb-btn.active{background:rgba(88,166,255,.15);border-color:var(--blue);color:var(--blue);}
+.tb-btn.danger:hover{border-color:var(--red);color:var(--red);}
+.tb-btn.success{background:rgba(63,185,80,.15);border-color:var(--green);color:var(--green);}
+.tb-sep{width:1px;height:24px;background:var(--border);margin:0 4px;}
+#toolbar .hint{font-size:11px;color:var(--muted);margin-left:8px;}
+
+/* LAYOUT */
+#workspace{display:flex;flex:1;overflow:hidden;}
+
+/* CANVAS */
+#canvas-wrap{flex:1;position:relative;overflow:hidden;}
+#canvas{width:100%;height:100%;position:relative;}
+svg#links{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;}
+svg#links .link-line{pointer-events:stroke;}
+
+/* NODES */
+.bg-node{position:absolute;width:130px;min-height:80px;background:var(--card);border:2px solid var(--border);border-radius:10px;cursor:move;user-select:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:10px 8px;transition:border-color .2s,box-shadow .2s;}
+.bg-node:hover{border-color:var(--blue);}
+.bg-node.selected{border-color:var(--blue);box-shadow:0 0 0 3px rgba(88,166,255,.2);}
+.bg-node.connecting-source{border-color:var(--orange);box-shadow:0 0 0 3px rgba(210,153,34,.2);}
+.bg-node.down{opacity:.4;border-color:var(--red);}
+.bg-node .node-icon{font-size:20px;}
+.bg-node .node-name{font-size:12px;font-weight:700;text-align:center;}
+.bg-node .node-asn{font-size:10px;color:var(--muted);}
+.bg-node .node-prefix{font-size:10px;color:var(--teal);margin-top:2px;text-align:center;word-break:break-all;}
+
+/* RIGHT PANEL */
+#panel{width:280px;background:var(--bg2);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;}
+#panel-header{padding:14px 16px 10px;border-bottom:1px solid var(--border);}
+#panel-header h2{font-size:13px;font-weight:700;color:var(--muted);}
+#panel-content{padding:14px 16px;flex:1;}
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:11px;color:var(--muted);margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;}
+.field input,.field select,.field textarea{width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:7px 10px;font-size:13px;font-family:inherit;transition:border-color .15s;}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--blue);}
+.field textarea{resize:vertical;min-height:60px;font-size:12px;}
+.field .help{font-size:11px;color:var(--muted);margin-top:4px;}
+.panel-btn{width:100%;padding:8px;border-radius:7px;border:none;cursor:pointer;font-size:13px;font-weight:600;margin-top:4px;transition:all .15s;}
+.panel-btn.primary{background:var(--blue);color:#0d1117;}
+.panel-btn.primary:hover{opacity:.85;}
+.panel-btn.danger{background:rgba(248,81,73,.15);color:var(--red);border:1px solid rgba(248,81,73,.3);}
+.panel-btn.danger:hover{background:rgba(248,81,73,.25);}
+.divider{height:1px;background:var(--border);margin:14px 0;}
+
+/* LOG */
+#log-wrap{height:130px;background:var(--bg2);border-top:1px solid var(--border);flex-shrink:0;display:flex;flex-direction:column;}
+#log-header{padding:6px 16px;font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+#log{padding:8px 16px;overflow-y:auto;flex:1;font-size:12px;font-family:monospace;line-height:1.7;}
+.log-info{color:var(--muted);}
+.log-ok{color:var(--green);}
+.log-warn{color:var(--orange);}
+.log-err{color:var(--red);}
+.log-blue{color:var(--blue);}
+
+/* MODAL */
+#modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:1000;}
+#modal-overlay.show{display:flex;}
+#modal{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:24px;width:360px;max-height:80vh;overflow-y:auto;}
+#modal h3{font-size:16px;font-weight:700;margin-bottom:18px;}
+.modal-btn-row{display:flex;gap:8px;margin-top:18px;}
+.modal-btn{flex:1;padding:8px;border-radius:7px;border:none;cursor:pointer;font-size:13px;font-weight:600;}
+.modal-btn.ok{background:var(--blue);color:#0d1117;}
+.modal-btn.cancel{background:var(--bg3);color:var(--text);border:1px solid var(--border);}
+
+/* EMPTY STATE */
+#empty-state{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;}
+#empty-state h3{font-size:18px;color:var(--muted);margin-bottom:8px;}
+#empty-state p{font-size:13px;color:#484f58;}
+
+/* LINK LABEL */
+.link-label{font-size:10px;fill:#8b949e;}
+.link-hit{stroke:transparent;stroke-width:12;cursor:pointer;pointer-events:stroke;}
+</style>
+</head>
+<body>
+
+<!-- TOOLBAR -->
+<div id="toolbar">
+  <h1>🧪 BGP Playground v2.0</h1>
+  <div class="tb-sep"></div>
+  <button class="tb-btn" id="btn-add-node" title="Agregar router/AS">➕ Agregar AS</button>
+  <button class="tb-btn" id="btn-connect" title="Modo conectar: click en nodo origen, luego destino">🔗 Conectar</button>
+  <button class="tb-btn" id="btn-simulate" title="Simular proceso de decisión BGP">▶ Simular BGP</button>
+  <div class="tb-sep"></div>
+  <button class="tb-btn danger" id="btn-delete" title="Eliminar elemento seleccionado">🗑 Eliminar</button>
+  <button class="tb-btn danger" id="btn-clear" title="Limpiar todo el canvas">🔄 Limpiar</button>
+  <div class="tb-sep"></div>
+  <button class="tb-btn" id="btn-load-claro" title="Cargar escenario del caso Claro">📂 Caso Claro</button>
+  <span class="hint" id="toolbar-hint">Hacé click en "Agregar AS" para comenzar</span>
+</div>
+
+<!-- WORKSPACE -->
+<div id="workspace">
+
+  <!-- CANVAS -->
+  <div id="canvas-wrap">
+    <div id="canvas">
+      <svg id="links"></svg>
+      <div id="empty-state">
+        <h3>Canvas vacío</h3>
+        <p>Usá "Agregar AS" para crear nodos<br>y "Conectar" para vincularlos</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div id="panel">
+    <div id="panel-header"><h2 id="panel-title">Sin selección</h2></div>
+    <div id="panel-content">
+      <p style="font-size:13px;color:#484f58">Seleccioná un nodo o un enlace para editar sus propiedades.</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- LOG -->
+<div id="log-wrap">
+  <div id="log-header">
+    <span>Log de simulación</span>
+    <span id="log-clear-btn" style="cursor:pointer;font-size:10px" onclick="document.getElementById('log').innerHTML=''">limpiar</span>
+  </div>
+  <div id="log"><span class="log-info">BGP Playground v2.0 listo. Agregá nodos y conectalos para comenzar.</span></div>
+</div>
+
+<!-- ADD NODE MODAL -->
+<div id="modal-overlay">
+  <div id="modal">
+    <h3 id="modal-title">Agregar AS / Router</h3>
+    <div class="field">
+      <label>Nombre del nodo</label>
+      <input type="text" id="m-name" placeholder="Ej: Sitio Matriz, Claro, Router-1">
+    </div>
+    <div class="field">
+      <label>ASN (Autonomous System Number)</label>
+      <input type="text" id="m-asn" placeholder="Ej: 64518 (privado) o 11664 (Claro)">
+      <div class="help">Rango privado: 64512–65534</div>
+    </div>
+    <div class="field">
+      <label>Tipo de nodo</label>
+      <select id="m-type">
+        <option value="router">🖥 Router / AS cliente</option>
+        <option value="isp">☁ ISP / Proveedor</option>
+        <option value="rr">🔄 Route Reflector</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Prefijos a anunciar (uno por línea)</label>
+      <textarea id="m-prefixes" placeholder="200.81.251.0/24&#10;10.0.0.0/8"></textarea>
+      <div class="help">Estos prefijos serán anunciados via BGP</div>
+    </div>
+    <div class="field">
+      <label>LOCAL-PREF (para tráfico de salida)</label>
+      <input type="number" id="m-lp" value="100" min="0" max="4294967295">
+      <div class="help">Mayor LOCAL-PREF = enlace preferido de salida</div>
+    </div>
+    <div class="modal-btn-row">
+      <button class="modal-btn cancel" id="modal-cancel">Cancelar</button>
+      <button class="modal-btn ok" id="modal-ok">Agregar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── STATE ──────────────────────────────────────────────────────────────────
+let nodes = [];
+let links = [];
+let selectedId = null;
+let selectedType = null; // 'node' | 'link'
+let connectMode = false;
+let connectSource = null;
+let dragging = null;
+let dragOffX = 0, dragOffY = 0;
+let nodeCounter = 0;
+let linkCounter = 0;
+let editingNodeId = null;
+
+// ── LOGGING ────────────────────────────────────────────────────────────────
+function log(msg, cls = 'log-info') {
+  const el = document.getElementById('log');
+  const line = document.createElement('div');
+  line.className = cls;
+  line.innerHTML = msg;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+// ── RENDER LINKS (SVG) ─────────────────────────────────────────────────────
+function renderLinks() {
+  const svg = document.getElementById('links');
+  svg.innerHTML = `<defs>
+    <marker id="arr-blue" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#58a6ff" opacity=".7"/>
+    </marker>
+    <marker id="arr-orange" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#d29922" opacity=".7"/>
+    </marker>
+    <marker id="arr-green" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#3fb950" opacity=".7"/>
+    </marker>
+  </defs>`;
+
+  links.forEach(link => {
+    const from = nodes.find(n => n.id === link.from);
+    const to = nodes.find(n => n.id === link.to);
+    if (!from || !to) return;
+
+    const x1 = from.x + 65, y1 = from.y + 40;
+    const x2 = to.x + 65, y2 = to.y + 40;
+
+    // Pick color by type
+    const color = link.type === 'iBGP' ? '#bc8cff' : (link.prepend > 1 ? '#d29922' : '#58a6ff');
+    const arrId = link.prepend > 1 ? 'arr-orange' : (link.type === 'iBGP' ? 'arr-blue' : 'arr-blue');
+    const dash = link.type === 'iBGP' ? '6,3' : (link.prepend > 1 ? '7,4' : '');
+    const isSelected = selectedType === 'link' && selectedId === link.id;
+
+    // Hit area
+    const hit = document.createElementNS('http://www.w3.org/2000/svg','line');
+    hit.setAttribute('x1',x1); hit.setAttribute('y1',y1);
+    hit.setAttribute('x2',x2); hit.setAttribute('y2',y2);
+    hit.setAttribute('class','link-hit');
+    hit.addEventListener('click', (e) => { e.stopPropagation(); selectLink(link.id); });
+    svg.appendChild(hit);
+
+    // Actual line
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',x1); line.setAttribute('y1',y1);
+    line.setAttribute('x2',x2); line.setAttribute('y2',y2);
+    line.setAttribute('stroke', isSelected ? '#ffffff' : color);
+    line.setAttribute('stroke-width', isSelected ? '3' : '2');
+    line.setAttribute('stroke-dasharray', dash);
+    line.setAttribute('marker-end', `url(#${arrId})`);
+    svg.appendChild(line);
+
+    // Label
+    const mx = (x1+x2)/2, my = (y1+y2)/2 - 10;
+    const text = document.createElementNS('http://www.w3.org/2000/svg','text');
+    text.setAttribute('x', mx); text.setAttribute('y', my);
+    text.setAttribute('text-anchor','middle');
+    text.setAttribute('class','link-label');
+    text.setAttribute('fill', isSelected ? '#e6edf3' : '#8b949e');
+    const prepStr = link.prepend > 1 ? ` / prepend×${link.prepend - 1}` : '';
+    const medStr = link.med ? ` / MED ${link.med}` : '';
+    text.textContent = `${link.type}${prepStr}${medStr}`;
+    svg.appendChild(text);
+  });
+}
+
+// ── RENDER NODES ──────────────────────────────────────────────────────────
+function renderNodes() {
+  // Remove old nodes
+  document.querySelectorAll('.bg-node').forEach(el => el.remove());
+  const canvas = document.getElementById('canvas');
+  const empty = document.getElementById('empty-state');
+  empty.style.display = nodes.length === 0 ? 'block' : 'none';
+
+  nodes.forEach(node => {
+    const el = document.createElement('div');
+    el.className = 'bg-node' + (selectedType==='node' && selectedId===node.id ? ' selected' : '') +
+                   (connectSource===node.id ? ' connecting-source' : '') +
+                   (node.down ? ' down' : '');
+    el.style.left = node.x + 'px';
+    el.style.top = node.y + 'px';
+    el.dataset.id = node.id;
+
+    const icons = { router:'🖥', isp:'☁', rr:'🔄' };
+    const prefixHtml = node.prefixes.length
+      ? node.prefixes.map(p => `<span class="node-prefix">${p}</span>`).join('')
+      : '<span class="node-prefix" style="color:#484f58">sin prefijos</span>';
+
+    el.innerHTML = `
+      <span class="node-icon">${icons[node.type]||'🖥'}</span>
+      <span class="node-name">${node.name}</span>
+      <span class="node-asn">AS ${node.asn}</span>
+      ${prefixHtml}
+    `;
+
+    // Events
+    el.addEventListener('mousedown', e => startDrag(e, node.id));
+    el.addEventListener('click', e => { e.stopPropagation(); handleNodeClick(node.id); });
+
+    canvas.appendChild(el);
+  });
+}
+
+function render() {
+  renderLinks();
+  renderNodes();
+}
+
+// ── DRAG ──────────────────────────────────────────────────────────────────
+function startDrag(e, id) {
+  if (connectMode) return;
+  dragging = id;
+  const node = nodes.find(n => n.id === id);
+  const rect = document.getElementById('canvas-wrap').getBoundingClientRect();
+  dragOffX = e.clientX - rect.left - node.x;
+  dragOffY = e.clientY - rect.top - node.y;
+  e.preventDefault();
+}
+
+document.addEventListener('mousemove', e => {
+  if (!dragging) return;
+  const node = nodes.find(n => n.id === dragging);
+  if (!node) return;
+  const rect = document.getElementById('canvas-wrap').getBoundingClientRect();
+  node.x = Math.max(0, e.clientX - rect.left - dragOffX);
+  node.y = Math.max(0, e.clientY - rect.top - dragOffY);
+  render();
+});
+
+document.addEventListener('mouseup', () => { dragging = null; });
+
+// ── SELECTION ─────────────────────────────────────────────────────────────
+function selectNode(id) {
+  selectedId = id;
+  selectedType = 'node';
+  renderNodePanel(nodes.find(n => n.id === id));
+  render();
+}
+
+function selectLink(id) {
+  selectedId = id;
+  selectedType = 'link';
+  renderLinkPanel(links.find(l => l.id === id));
+  render();
+}
+
+function clearSelection() {
+  selectedId = null;
+  selectedType = null;
+  document.getElementById('panel-title').textContent = 'Sin selección';
+  document.getElementById('panel-content').innerHTML = '<p style="font-size:13px;color:#484f58">Seleccioná un nodo o enlace para editar sus propiedades.</p>';
+  render();
+}
+
+document.getElementById('canvas').addEventListener('click', () => {
+  if (!connectMode) clearSelection();
+});
+
+// ── NODE CLICK (dual purpose: select or connect) ───────────────────────────
+function handleNodeClick(id) {
+  if (connectMode) {
+    if (!connectSource) {
+      connectSource = id;
+      setHint('Ahora hacé click en el nodo destino para crear el enlace');
+      render();
+    } else if (connectSource !== id) {
+      // Check if link already exists
+      const exists = links.find(l => (l.from===connectSource && l.to===id)||(l.from===id&&l.to===connectSource));
+      if (exists) {
+        log(`⚠ Ya existe un enlace entre esos nodos.`, 'log-warn');
+      } else {
+        const newLink = { id: 'link-' + (++linkCounter), from: connectSource, to: id, type: 'eBGP', prepend: 1, med: 0 };
+        links.push(newLink);
+        const fromNode = nodes.find(n=>n.id===connectSource);
+        const toNode = nodes.find(n=>n.id===id);
+        log(`🔗 Enlace creado: <strong style="color:#58a6ff">${fromNode.name}</strong> ↔ <strong style="color:#58a6ff">${toNode.name}</strong> (eBGP, prepend×0)`, 'log-ok');
+        selectLink(newLink.id);
+      }
+      connectSource = null;
+      toggleConnectMode(false);
+      render();
+    }
+  } else {
+    selectNode(id);
+  }
+}
+
+// ── PANEL: NODE PROPERTIES ─────────────────────────────────────────────────
+function renderNodePanel(node) {
+  document.getElementById('panel-title').textContent = 'Propiedades del Nodo';
+  document.getElementById('panel-content').innerHTML = `
+    <div class="field">
+      <label>Nombre</label>
+      <input type="text" id="pn-name" value="${node.name}">
+    </div>
+    <div class="field">
+      <label>ASN</label>
+      <input type="text" id="pn-asn" value="${node.asn}">
+      <div class="help">Privado: 64512–65534 | Público: cualquier otro</div>
+    </div>
+    <div class="field">
+      <label>Tipo</label>
+      <select id="pn-type">
+        <option value="router" ${node.type==='router'?'selected':''}>🖥 Router / AS cliente</option>
+        <option value="isp" ${node.type==='isp'?'selected':''}>☁ ISP / Proveedor</option>
+        <option value="rr" ${node.type==='rr'?'selected':''}>🔄 Route Reflector</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Prefijos anunciados (uno por línea)</label>
+      <textarea id="pn-prefixes">${node.prefixes.join('\n')}</textarea>
+    </div>
+    <div class="field">
+      <label>LOCAL-PREF</label>
+      <input type="number" id="pn-lp" value="${node.lp}" min="0" max="4294967295">
+      <div class="help">Mayor = este enlace se prefiere para salida</div>
+    </div>
+    <div class="divider"></div>
+    <button class="panel-btn primary" id="pn-apply">✓ Aplicar cambios</button>
+    <button class="panel-btn danger" style="margin-top:8px" id="pn-toggle-down">${node.down?'✓ Recuperar nodo':'⚠ Simular falla (derribar)'}</button>
+    <button class="panel-btn danger" style="margin-top:8px" id="pn-delete">🗑 Eliminar nodo</button>
+  `;
+  document.getElementById('pn-apply').addEventListener('click', () => {
+    node.name = document.getElementById('pn-name').value || node.name;
+    node.asn = document.getElementById('pn-asn').value || node.asn;
+    node.type = document.getElementById('pn-type').value;
+    const raw = document.getElementById('pn-prefixes').value;
+    node.prefixes = raw.split('\n').map(s=>s.trim()).filter(Boolean);
+    node.lp = parseInt(document.getElementById('pn-lp').value)||100;
+    log(`✏ Nodo <strong style="color:#58a6ff">${node.name}</strong> actualizado — AS ${node.asn}, LOCAL-PREF ${node.lp}`, 'log-ok');
+    render();
+  });
+  document.getElementById('pn-toggle-down').addEventListener('click', () => {
+    node.down = !node.down;
+    if (node.down) {
+      log(`💥 <strong style="color:#f85149">${node.name}</strong> caído. Sesiones BGP interrumpidas. Hold Timer expira en 90s → peers retiran las rutas aprendidas de este nodo.`, 'log-err');
+    } else {
+      log(`✅ <strong style="color:#3fb950">${node.name}</strong> recuperado. FSM: Idle → Connect → Established. Se re-anuncian todos los prefijos.`, 'log-ok');
+    }
+    selectNode(node.id);
+    render();
+  });
+  document.getElementById('pn-delete').addEventListener('click', () => {
+    deleteSelected();
+  });
+}
+
+// ── PANEL: LINK PROPERTIES ─────────────────────────────────────────────────
+function renderLinkPanel(link) {
+  if (!link) return;
+  const fromNode = nodes.find(n=>n.id===link.from);
+  const toNode = nodes.find(n=>n.id===link.to);
+  document.getElementById('panel-title').textContent = 'Propiedades del Enlace';
+  document.getElementById('panel-content').innerHTML = `
+    <div style="font-size:12px;color:#8b949e;margin-bottom:14px">
+      <strong style="color:#e6edf3">${fromNode?.name||'?'}</strong> ↔ <strong style="color:#e6edf3">${toNode?.name||'?'}</strong>
+    </div>
+    <div class="field">
+      <label>Tipo de sesión</label>
+      <select id="pl-type">
+        <option value="eBGP" ${link.type==='eBGP'?'selected':''}>eBGP (entre ASes distintos)</option>
+        <option value="iBGP" ${link.type==='iBGP'?'selected':''}>iBGP (mismo AS)</option>
+      </select>
+      <div class="help">eBGP = frontera de AS. iBGP = interno al AS.</div>
+    </div>
+    <div class="field">
+      <label>AS-PATH Prepend (veces extra)</label>
+      <input type="number" id="pl-prepend" value="${link.prepend}" min="1" max="10">
+      <div class="help">1 = sin prepend (normal). 2 = prepend ×1 (64518 64518). Más = ruta menos preferida.</div>
+    </div>
+    <div class="field">
+      <label>MED (Multi-Exit Discriminator)</label>
+      <input type="number" id="pl-med" value="${link.med||0}" min="0">
+      <div class="help">0 = no usar MED. Menor MED = entrada preferida desde el AS vecino.</div>
+    </div>
+    <div class="field">
+      <label>Peso del enlace (Weight, Cisco)</label>
+      <input type="number" id="pl-weight" value="${link.weight||0}" min="0">
+      <div class="help">Solo local al router. Paso 0 del algoritmo de decisión (mayor = preferido).</div>
+    </div>
+    <div class="divider"></div>
+    <button class="panel-btn primary" id="pl-apply">✓ Aplicar cambios</button>
+    <button class="panel-btn danger" style="margin-top:8px" id="pl-delete">🗑 Eliminar enlace</button>
+  `;
+  document.getElementById('pl-apply').addEventListener('click', () => {
+    link.type = document.getElementById('pl-type').value;
+    link.prepend = parseInt(document.getElementById('pl-prepend').value)||1;
+    link.med = parseInt(document.getElementById('pl-med').value)||0;
+    link.weight = parseInt(document.getElementById('pl-weight').value)||0;
+    log(`✏ Enlace actualizado: ${fromNode?.name} ↔ ${toNode?.name} | ${link.type} | prepend×${link.prepend-1} | MED ${link.med}`, 'log-ok');
+    render();
+  });
+  document.getElementById('pl-delete').addEventListener('click', () => deleteSelected());
+}
+
+// ── DELETE ─────────────────────────────────────────────────────────────────
+function deleteSelected() {
+  if (!selectedId) return;
+  if (selectedType === 'node') {
+    const node = nodes.find(n=>n.id===selectedId);
+    links = links.filter(l => l.from !== selectedId && l.to !== selectedId);
+    nodes = nodes.filter(n => n.id !== selectedId);
+    log(`🗑 Nodo <strong>${node?.name}</strong> eliminado junto con sus enlaces.`, 'log-warn');
+  } else if (selectedType === 'link') {
+    const link = links.find(l=>l.id===selectedId);
+    const from = nodes.find(n=>n.id===link?.from);
+    const to = nodes.find(n=>n.id===link?.to);
+    links = links.filter(l => l.id !== selectedId);
+    log(`🗑 Enlace ${from?.name} ↔ ${to?.name} eliminado.`, 'log-warn');
+  }
+  clearSelection();
+}
+
+// ── ADD NODE MODAL ─────────────────────────────────────────────────────────
+function openAddModal(preset = null) {
+  editingNodeId = null;
+  document.getElementById('modal-title').textContent = 'Agregar AS / Router';
+  document.getElementById('m-name').value = preset?.name || '';
+  document.getElementById('m-asn').value = preset?.asn || '';
+  document.getElementById('m-type').value = preset?.type || 'router';
+  document.getElementById('m-prefixes').value = preset?.prefixes?.join('\n') || '';
+  document.getElementById('m-lp').value = preset?.lp || 100;
+  document.getElementById('modal-overlay').classList.add('show');
+  document.getElementById('m-name').focus();
+}
+
+document.getElementById('modal-cancel').addEventListener('click', () => {
+  document.getElementById('modal-overlay').classList.remove('show');
+});
+
+document.getElementById('modal-ok').addEventListener('click', () => {
+  const name = document.getElementById('m-name').value.trim();
+  const asn = document.getElementById('m-asn').value.trim();
+  if (!name || !asn) { alert('Nombre y ASN son obligatorios.'); return; }
+  const raw = document.getElementById('m-prefixes').value;
+  const prefixes = raw.split('\n').map(s=>s.trim()).filter(Boolean);
+  const type = document.getElementById('m-type').value;
+  const lp = parseInt(document.getElementById('m-lp').value)||100;
+
+  // Place new node in a free area
+  const id = 'node-' + (++nodeCounter);
+  const x = 80 + (nodes.length % 4) * 160;
+  const y = 80 + Math.floor(nodes.length / 4) * 140;
+  const newNode = { id, name, asn, type, prefixes, lp, x, y, down: false };
+  nodes.push(newNode);
+  log(`➕ Nodo creado: <strong style="color:#58a6ff">${name}</strong> — AS ${asn} | LOCAL-PREF ${lp} | prefijos: ${prefixes.join(', ')||'ninguno'}`, 'log-ok');
+  document.getElementById('modal-overlay').classList.remove('show');
+  selectNode(id);
+  render();
+});
+
+// ── CONNECT MODE ──────────────────────────────────────────────────────────
+function toggleConnectMode(force) {
+  connectMode = force !== undefined ? force : !connectMode;
+  connectSource = null;
+  document.getElementById('btn-connect').classList.toggle('active', connectMode);
+  setHint(connectMode ? 'Click en nodo ORIGEN, luego en nodo DESTINO' : 'Hacé click en "Agregar AS" para comenzar');
+  render();
+}
+
+function setHint(msg) {
+  document.getElementById('toolbar-hint').textContent = msg;
+}
+
+// ── SIMULATION ────────────────────────────────────────────────────────────
+function simulate() {
+  if (nodes.length < 2) { log('⚠ Necesitás al menos 2 nodos para simular.', 'log-warn'); return; }
+  if (links.length === 0) { log('⚠ No hay enlaces. Conectá los nodos primero.', 'log-warn'); return; }
+
+  log('', 'log-info');
+  log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'log-info');
+  log('▶ SIMULACIÓN BGP — Algoritmo de decisión de ruta', 'log-blue');
+  log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'log-info');
+
+  // Find ISP node (target)
+  const ispNode = nodes.find(n => n.type === 'isp') || nodes[nodes.length - 1];
+  log(`🎯 Nodo destino (ISP): <strong>${ispNode.name}</strong> (AS ${ispNode.asn})`, 'log-blue');
+
+  // Find all links toward ISP
+  const linksToISP = links.filter(l => l.to === ispNode.id || l.from === ispNode.id);
+  const routes = linksToISP.map(link => {
+    const peerId = link.from === ispNode.id ? link.to : link.from;
+    const peer = nodes.find(n => n.id === peerId);
+    return { peer, link };
+  }).filter(r => r.peer && !r.peer.down);
+
+  if (routes.length === 0) {
+    log('⚠ No hay rutas activas hacia el ISP (todos los peers están caídos o sin conectar).', 'log-warn');
+    return;
+  }
+
+  log(`📋 ${routes.length} ruta(s) candidata(s):`, 'log-info');
+  routes.forEach((r, i) => {
+    const aspathLen = r.link.prepend;
+    const prefixList = r.peer.prefixes.join(', ') || '(sin prefijos)';
+    log(`  [${i+1}] ${r.peer.name} — AS ${r.peer.asn} | LOCAL-PREF: ${r.peer.lp} | AS-PATH length: ${aspathLen} | MED: ${r.link.med||0} | Prefijos: ${prefixList}`, 'log-info');
+  });
+
+  // Decision algorithm
+  log('', 'log-info');
+  log('🔢 Aplicando algoritmo de decisión BGP:', 'log-blue');
+
+  let candidates = [...routes];
+  let winner = null;
+
+  // Step 1: Filter down nodes (already done above)
+  log(`  [Paso 1] Filtrado import policy — ${candidates.length} ruta(s) activas`, 'log-info');
+
+  // Step 2: LOCAL-PREF (highest wins)
+  const maxLP = Math.max(...candidates.map(r => r.peer.lp));
+  const afterLP = candidates.filter(r => r.peer.lp === maxLP);
+  if (afterLP.length < candidates.length) {
+    log(`  [Paso 2] LOCAL-PREF — gana LOCAL-PREF ${maxLP}: <strong style="color:#3fb950">${afterLP.map(r=>r.peer.name).join(', ')}</strong>`, 'log-ok');
+    candidates = afterLP;
+  } else {
+    log(`  [Paso 2] LOCAL-PREF — empate (${maxLP}) → siguiente criterio`, 'log-info');
+  }
+
+  if (candidates.length === 1) {
+    winner = candidates[0];
+  } else {
+    // Step 3 (skip local): Step 4 — AS-PATH length (shortest wins)
+    const minPath = Math.min(...candidates.map(r => r.link.prepend));
+    const afterPath = candidates.filter(r => r.link.prepend === minPath);
+    if (afterPath.length < candidates.length) {
+      log(`  [Paso 4] AS-PATH length — gana path length ${minPath}: <strong style="color:#3fb950">${afterPath.map(r=>r.peer.name).join(', ')}</strong>`, 'log-ok');
+      candidates = afterPath;
+    } else {
+      log(`  [Paso 4] AS-PATH length — empate (${minPath}) → siguiente criterio`, 'log-info');
+    }
+
+    if (candidates.length === 1) {
+      winner = candidates[0];
+    } else {
+      // Step 6: MED (lowest wins, if same AS)
+      const minMED = Math.min(...candidates.map(r => r.link.med||0));
+      const afterMED = candidates.filter(r => (r.link.med||0) === minMED);
+      if (afterMED.length < candidates.length) {
+        log(`  [Paso 6] MED — gana MED ${minMED}: <strong style="color:#3fb950">${afterMED.map(r=>r.peer.name).join(', ')}</strong>`, 'log-ok');
+        candidates = afterMED;
+      } else {
+        log(`  [Paso 6] MED — empate o mismo valor → siguiente criterio`, 'log-info');
+      }
+      winner = candidates[0];
+    }
+  }
+
+  log('', 'log-info');
+  if (winner) {
+    const prefixes = winner.peer.prefixes.join(', ') || '(sin prefijos declarados)';
+    log(`🏆 RUTA GANADORA: <strong style="color:#3fb950">${winner.peer.name}</strong> (AS ${winner.peer.asn}) — ${winner.link.type} | LOCAL-PREF ${winner.peer.lp} | AS-PATH length ${winner.link.prepend}`, 'log-ok');
+    log(`   Prefijos enrutados: <strong style="color:#39d353">${prefixes}</strong>`, 'log-ok');
+
+    const losers = routes.filter(r => r.peer.id !== winner.peer.id);
+    if (losers.length > 0) {
+      log(`   Rutas de respaldo: ${losers.map(r=>`${r.peer.name} (AS ${r.peer.asn})`).join(', ')}`, 'log-warn');
+    }
+  }
+  log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'log-info');
+}
+
+// ── LOAD PRESET: CASO CLARO ───────────────────────────────────────────────
+function loadClaroPreset() {
+  nodes = [];
+  links = [];
+  nodeCounter = 0;
+  linkCounter = 0;
+
+  nodes = [
+    { id:'node-1', name:'Sitio Matriz', asn:'64518', type:'router', prefixes:['200.81.251.0/24'], lp:200, x:60, y:80, down:false },
+    { id:'node-2', name:'Sitio Alterno', asn:'64518', type:'router', prefixes:['x.x.x.0/24'], lp:100, x:60, y:260, down:false },
+    { id:'node-3', name:'Claro', asn:'11664', type:'isp', prefixes:['0.0.0.0/0'], lp:100, x:420, y:170, down:false }
+  ];
+  links = [
+    { id:'link-1', from:'node-1', to:'node-3', type:'eBGP', prepend:1, med:0, weight:0 },
+    { id:'link-2', from:'node-2', to:'node-3', type:'eBGP', prepend:2, med:0, weight:0 }
+  ];
+  nodeCounter = 3; linkCounter = 2;
+  log('📂 Escenario cargado: <strong>Caso Claro — Principal/Backup (Solución Karina)</strong>', 'log-blue');
+  log('   Sitio Matriz → eBGP sin prepend, LOCAL-PREF 200 (principal)', 'log-info');
+  log('   Sitio Alterno → eBGP prepend×1, LOCAL-PREF 100 (backup)', 'log-info');
+  log('   Hacé click en "▶ Simular BGP" para ver el análisis de rutas.', 'log-info');
+  clearSelection();
+  render();
+}
+
+// ── CLEAR ─────────────────────────────────────────────────────────────────
+function clearAll() {
+  if (nodes.length > 0 && !confirm('¿Limpiar todo el canvas?')) return;
+  nodes = []; links = [];
+  nodeCounter = 0; linkCounter = 0;
+  connectMode = false; connectSource = null;
+  toggleConnectMode(false);
+  clearSelection();
+  log('🔄 Canvas limpiado.', 'log-warn');
+  render();
+}
+
+// ── TOOLBAR EVENTS ─────────────────────────────────────────────────────────
+document.getElementById('btn-add-node').addEventListener('click', () => openAddModal());
+document.getElementById('btn-connect').addEventListener('click', () => toggleConnectMode());
+document.getElementById('btn-simulate').addEventListener('click', simulate);
+document.getElementById('btn-delete').addEventListener('click', deleteSelected);
+document.getElementById('btn-clear').addEventListener('click', clearAll);
+document.getElementById('btn-load-claro').addEventListener('click', loadClaroPreset);
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if (e.key === 'Delete' || e.key === 'Backspace') {
+    if (document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+      deleteSelected();
+    }
+  }
+  if (e.key === 'Escape') { toggleConnectMode(false); clearSelection(); }
+  if (e.key === 'n' && !e.ctrlKey && document.activeElement.tagName !== 'INPUT') openAddModal();
+});
+
+// ── INIT ──────────────────────────────────────────────────────────────────
+render();
+log('💡 Tip: seleccioná un enlace para configurar su tipo (eBGP/iBGP), prepend, MED y weight.');
+log('💡 Tip: presioná <strong>N</strong> para agregar nodo rápido, <strong>Delete</strong> para eliminar selección, <strong>Esc</strong> para cancelar.');
+</script>
+</body>
+</html>
